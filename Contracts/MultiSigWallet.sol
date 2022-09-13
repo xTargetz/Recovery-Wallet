@@ -96,7 +96,7 @@ contract MultiSigWallet {
         }
     }
 
-    function execute(uint txId) external txExists(txId) notExecuted(txID) {
+    function execute(uint txId) external txExists(txId) notExecuted(txId) {
         require(_getApprovalCount(txId) >= required, "approvals < required");
         Transaction storage transaction = transactions[txId];
 
@@ -115,7 +115,7 @@ contract MultiSigWallet {
         notExecuted(txId)
         notApproved(txId)
     {
-        requre(approved[txId][msg.sender], "tx not approved");
+        require(approved[txId][msg.sender], "tx not approved");
         approved[txId][msg.sender] = false;
         emit Revoke(msg.sender, txId);
     }
