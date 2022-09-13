@@ -14,14 +14,14 @@ contract MultiSigWallet {
         bytes data;
         bool executed;
     }
-
+    address admin;
     address[] public owners;
     mapping(address => bool) public isOwner;
     uint public required;
 
     Transaction[] public transactions;
     mapping(uint => mapping(address => bool)) public approved;
-
+    mapping(address => uint256) public oi;
     modifier onlyOwner() {
         require(isOwner[msg.sender], "not owner");
         _;
@@ -41,16 +41,19 @@ contract MultiSigWallet {
         require(!transactions[txId].executed, "tx already executed");
         _;
     }
-
+    modifier onlyA(){
+        require(admin == msg.sender);
+        _;
+    }
     constructor(address[] memory _owners, uint _required) {
         require(_owners.length > 0, "owners required");
         require(_required > 0 && _required <= _owners.length, "invalid required number of owners");
-
+        admin = msg.sender;
         for (uint i = 0; i < _owners.length; i++) {
             address owner = _owners[i];
             require(owner != address(0), "invalid owner");
             require(!isOwner[owner], "owner not unique");
-
+            oi[owner] = i;
             isOwner[owner] = true;
             owners.push(owner);
         }
@@ -63,7 +66,12 @@ contract MultiSigWallet {
             emit Deposit(msg.sender, msg.value);
         }
     }
-
+    function setRequired(uint256 _req) onlyA() external returns(uint256){
+        require(owners.length > 0, "owners required");
+        require(_req > 0 && _req <= owners.length, "invalid required number of owners");
+        required = _req;
+        return _req;
+    }
     function submit(address to, uint value, bytes memory data) public returns (uint txId) {
         require(isOwner[msg.sender], "not owner");
         txId = transactions.length;
