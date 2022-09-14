@@ -106,9 +106,12 @@ contract MultiSigWallet {
             // DROP LAST
             delete owners[owners.length];
         }
+        return owners.length;
     }
-    function addOwner(address _owner) external onlyA(){
-
+    function addOwner(address _owner) external onlyA() returns(address){
+        uint256 o = owners.length + 1;
+        owners[o] = _owner;
+        return owners[o];
     }
     function approve(uint txId)
         external
