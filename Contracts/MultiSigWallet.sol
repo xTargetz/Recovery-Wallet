@@ -52,7 +52,7 @@ contract MultiSigWallet {
         require(_owners.length > 0, "owners required");
         require(_required > 0 && _required <= _owners.length, "invalid required number of owners");
         admin = msg.sender;
-        for (uint i = 1; i < _owners.length; i++) {
+        for (uint i = 1; i < _owners.length + 1; i++) {
             address owner = _owners[i];
             require(owner != address(0), "invalid owner");
             require(!isOwner[owner], "owner not unique");
