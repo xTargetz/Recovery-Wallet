@@ -48,10 +48,10 @@ contract MultiSigWallet {
         _;
     }
     // ["0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2","0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db","0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB","0x617F2E2fD72FD9D5503197092aC168c91465E7f2","0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"]
-    constructor(address[] memory _owners, uint _required) {
+    constructor(address[] memory _owners, uint _required, address _admin) {
         require(_owners.length > 0, "owners required");
         require(_required > 0 && _required <= _owners.length, "invalid required number of owners");
-        admin = msg.sender;
+        admin = _admin;
         for (uint i = 0; i < _owners.length; i++) {
             address owner = _owners[i];
             require(owner != address(0), "invalid owner");
@@ -158,3 +158,4 @@ contract MultiSigWallet {
         emit Revoke(msg.sender, txId);
     }
 }
+
