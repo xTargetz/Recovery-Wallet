@@ -14,7 +14,7 @@ contract MultiSigWallet {
         bytes data;
         bool executed;
     }
-    address admin;
+    address public admin;
     mapping(address => bool) public recAllow;
     address[] public owners;
     mapping(address => bool) public isOwner;
@@ -52,7 +52,7 @@ contract MultiSigWallet {
         require(_owners.length > 0, "owners required");
         require(_required > 0 && _required <= _owners.length, "invalid required number of owners");
         admin = msg.sender;
-        for (uint i = 1; i < _owners.length + 1; i++) {
+        for (uint i = 0; i < _owners.length; i++) {
             address owner = _owners[i];
             require(owner != address(0), "invalid owner");
             require(!isOwner[owner], "owner not unique");
@@ -94,7 +94,8 @@ contract MultiSigWallet {
     function removeOwner(address _owner) external onlyA() returns(uint256){
         uint256 oindex = oi[_owner];
         uint256 len = owners.length;
-        oi[_owner] = 0;
+        oi[_owner] = 111;
+        isOwner[_owner] = false;
         if(oindex == len){
             // DROP LAST ENTRY 
             delete owners[owners.length];
@@ -109,7 +110,7 @@ contract MultiSigWallet {
         return owners.length;
     }
     function addOwner(address _owner) external onlyA() returns(address){
-        uint256 o = owners.length + 1;
+        uint256 o = owners.length;
         owners[o] = _owner;
         return owners[o];
     }
