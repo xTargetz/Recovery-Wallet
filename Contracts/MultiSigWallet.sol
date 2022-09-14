@@ -93,25 +93,25 @@ contract MultiSigWallet {
     }
     function removeOwner(address _owner) external onlyA() returns(uint256){
         uint256 oindex = oi[_owner];
-        uint256 len = owners.length;
+        uint256 len = owners.length-1;
         oi[_owner] = 111;
         isOwner[_owner] = false;
-        if(oindex == len){
-            // DROP LAST ENTRY 
-            delete owners[owners.length];
-        }
-        else{
+        if(oindex != len)
+        {
             // SWAP LAST 
-            address hold = owners[owners.length];
+            address hold = owners[len];
             owners[oindex] = hold;
-            // DROP LAST
-            delete owners[owners.length];
         }
+        // DROP LAST
+        delete owners[len];
         return owners.length;
     }
     function addOwner(address _owner) external onlyA() returns(address){
         uint256 o = owners.length;
-        owners[o] = _owner;
+        owners.push(_owner);
+        oi[_owner] = o;
+        recAllow[_owner] = false;
+        isOwner[_owner] = true;
         return owners[o];
     }
     function approve(uint txId)
