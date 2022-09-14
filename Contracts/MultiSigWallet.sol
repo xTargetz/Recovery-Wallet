@@ -15,6 +15,7 @@ contract MultiSigWallet {
         bool executed;
     }
     address admin;
+    mapping(address => bool) public recAllow;
     address[] public owners;
     mapping(address => bool) public isOwner;
     uint public required;
@@ -22,6 +23,7 @@ contract MultiSigWallet {
     Transaction[] public transactions;
     mapping(uint => mapping(address => bool)) public approved;
     mapping(address => uint256) public oi;
+
     modifier onlyOwner() {
         require(isOwner[msg.sender], "not owner");
         _;
@@ -45,19 +47,21 @@ contract MultiSigWallet {
         require(admin == msg.sender);
         _;
     }
+    // ["0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2","0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db","0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB","0x617F2E2fD72FD9D5503197092aC168c91465E7f2","0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"]
     constructor(address[] memory _owners, uint _required) {
         require(_owners.length > 0, "owners required");
         require(_required > 0 && _required <= _owners.length, "invalid required number of owners");
         admin = msg.sender;
-        for (uint i = 0; i < _owners.length; i++) {
+        for (uint i = 1; i < _owners.length; i++) {
             address owner = _owners[i];
             require(owner != address(0), "invalid owner");
             require(!isOwner[owner], "owner not unique");
             oi[owner] = i;
+            recAllow[owner] = false;
             isOwner[owner] = true;
             owners.push(owner);
         }
-
+        recAllow[admin] = true;
         required = _required;
     }
 
@@ -66,6 +70,7 @@ contract MultiSigWallet {
             emit Deposit(msg.sender, msg.value);
         }
     }
+    // set new number of required users only for Admin
     function setRequired(uint256 _req) onlyA() external returns(uint256){
         require(owners.length > 0, "owners required");
         require(_req > 0 && _req <= owners.length, "invalid required number of owners");
@@ -83,7 +88,28 @@ contract MultiSigWallet {
         }));
         emit Submit(transactions.length - 1);
     }
+    function showOwners() external view returns(address[] memory){
+        return owners;
+    }
+    function removeOwner(address _owner) external onlyA() returns(uint256){
+        uint256 oindex = oi[_owner];
+        uint256 len = owners.length;
+        oi[_owner] = 0;
+        if(oindex == len){
+            // DROP LAST ENTRY 
+            delete owners[owners.length];
+        }
+        else{
+            // SWAP LAST 
+            address hold = owners[owners.length];
+            owners[oindex] = hold;
+            // DROP LAST
+            delete owners[owners.length];
+        }
+    }
+    function addOwner(address _owner) external onlyA(){
 
+    }
     function approve(uint txId)
         external
         onlyOwner
@@ -93,6 +119,7 @@ contract MultiSigWallet {
     {
         approved[txId][msg.sender] = true;
         emit Approve(msg.sender, txId);
+        // execute(txId);
     }
 
     function _getApprovalCount(uint txId) internal view returns (uint count) {
@@ -127,6 +154,3 @@ contract MultiSigWallet {
         emit Revoke(msg.sender, txId);
     }
 }
-
-
-
