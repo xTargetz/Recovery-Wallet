@@ -2,64 +2,76 @@
 pragma solidity ^0.8.10;
 
 contract MultiSigWallet {
-    event Deposit(address indexed sender, uint amount);
-    event Submit(uint indexed txId);
-    event Approve(address indexed owner, uint indexed txId);
-    event Revoke(address indexed owner, uint indexed txID);
-    event Execute(uint indexed txId);
+    event Deposit(address indexed sender, uint256 amount);
+    event Submit(uint256 indexed txId);
+    event Approve(address indexed guard, uint256 indexed txId);
+    event Revoke(address indexed guard, uint256 indexed txID);
+    event Execute(uint256 indexed txId);
 
     struct Transaction {
         address to;
-        uint value;
+        uint256 value;
         bytes data;
         bool executed;
     }
-    address public admin;
-    mapping(address => bool) public recAllow;
-    address[] public owners;
-    mapping(address => bool) public isOwner;
-    uint public required;
+    address public admin; // contract admin
+    // is allowed to add users remove users and set amount of required guards
 
-    Transaction[] public transactions;
-    mapping(uint => mapping(address => bool)) public approved;
+    mapping(address => bool) public recAllow; // bool is user allowed to recover the contract
+    address[] public guards; // guards can add tx to contract
+    mapping(address => bool) public isGuard; // bool is user a guard
+    uint256 public required; // number of guards required to execute a tx
+
+    Transaction[] public transactions; // array of tx
+    // ! txid => # guard address => ? bool approved
+    mapping(uint256 => mapping(address => bool)) public approved; // mapping bool of user to tx
+    // # user address => array position
     mapping(address => uint256) public oi;
 
     modifier onlyOwner() {
-        require(isOwner[msg.sender], "not owner");
+        require(isGuard[msg.sender], "not guard");
         _;
     }
 
-    modifier txExists(uint txId) {
+    modifier txExists(uint256 txId) {
         require(txId < transactions.length, "tx does not exist");
         _;
     }
 
-    modifier notApproved(uint txId) {
+    modifier notApproved(uint256 txId) {
         require(!approved[txId][msg.sender], "tx already approved");
         _;
     }
 
-    modifier notExecuted(uint txId) {
+    modifier notExecuted(uint256 txId) {
         require(!transactions[txId].executed, "tx already executed");
         _;
     }
-    modifier onlyA(){
+    modifier onlyA() {
         require(admin == msg.sender);
         _;
     }
+
     // ["0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2","0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db","0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB","0x617F2E2fD72FD9D5503197092aC168c91465E7f2","0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"]
-    constructor(address[] memory _owners, uint _required, address _admin) {
-        require(_owners.length > 0, "owners required");
-        require(_required > 0 && _required <= _owners.length, "invalid required number of owners");
+    constructor(
+        address[] memory _guards,
+        uint256 _required,
+        address _admin
+    ) {
+        require(_guards.length > 0, "guards required");
+        require(
+            _required > 0 && _required <= _guards.length,
+            "invalid required number of guards"
+        );
         admin = _admin;
-        for (uint i = 0; i < _owners.length; i++) {
-            address owner = _owners[i];
-            require(owner != address(0), "invalid owner");
-            require(!isOwner[owner], "owner not unique");
-            oi[owner] = i;
-            recAllow[owner] = false;
-            isOwner[owner] = true;
-            owners.push(owner);
+        for (uint256 i = 0; i < _guards.length; i++) {
+            address guard = _guards[i];
+            require(guard != address(0), "invalid guard");
+            require(!isGuard[guard], "guard not unique");
+            oi[guard] = i;
+            recAllow[guard] = false;
+            isGuard[guard] = true;
+            guards.push(guard);
         }
         recAllow[admin] = true;
         required = _required;
@@ -70,51 +82,61 @@ contract MultiSigWallet {
             emit Deposit(msg.sender, msg.value);
         }
     }
+
     // set new number of required users only for Admin
-    function setRequired(uint256 _req) onlyA() external returns(uint256){
-        require(owners.length > 0, "owners required");
-        require(_req > 0 && _req <= owners.length, "invalid required number of owners");
+    function setRequired(uint256 _req) external onlyA returns (uint256) {
+        require(guards.length > 0, "guards required");
+        require(
+            _req > 0 && _req <= guards.length,
+            "invalid required number of guards"
+        );
         required = _req;
         return _req;
     }
-    function submit(address to, uint value, bytes memory data) public returns (uint txId) {
-        require(isOwner[msg.sender], "not owner");
+
+    function submit(
+        address to,
+        uint256 value,
+        bytes memory data
+    ) public returns (uint256 txId) {
+        require(isGuard[msg.sender], "not guard");
         txId = transactions.length;
-        transactions.push(Transaction({
-            to: to,
-            value: value,
-            data: data,
-            executed: false
-        }));
+        transactions.push(
+            Transaction({to: to, value: value, data: data, executed: false})
+        );
         emit Submit(transactions.length - 1);
     }
-    function showOwners() external view returns(address[] memory){
-        return owners;
+
+    function showOwners() external view returns (address[] memory) {
+        return guards;
     }
-    function removeOwner(address _owner) external onlyA() returns(uint256){
-        uint256 oindex = oi[_owner];
-        uint256 len = owners.length-1;
-        oi[_owner] = 111;
-        isOwner[_owner] = false;
-        if(oindex != len)
-        {
-            // SWAP LAST 
-            address hold = owners[len];
-            owners[oindex] = hold;
+
+    function removeOwner(address _guard) external onlyA returns (uint256) {
+        uint256 oindex = oi[_guard];
+        uint256 len = guards.length - 1;
+        oi[_guard] = 999;
+        isGuard[_guard] = false;
+        if (oindex != len) {
+            // SWAP LAST
+            address hold = guards[len];
+            oi[hold] = oindex;
+            guards[oindex] = hold;
         }
         // DROP LAST
-        delete owners[len];
-        return owners.length;
+        delete guards[len];
+        return guards.length;
     }
-    function addOwner(address _owner) external onlyA() returns(address){
-        uint256 o = owners.length;
-        owners.push(_owner);
-        oi[_owner] = o;
-        recAllow[_owner] = false;
-        isOwner[_owner] = true;
-        return owners[o];
+
+    function addOwner(address _guard) external onlyA returns (address) {
+        uint256 o = guards.length;
+        guards.push(_guard);
+        oi[_guard] = o;
+        recAllow[_guard] = false;
+        isGuard[_guard] = true;
+        return guards[o];
     }
-    function approve(uint txId)
+
+    function approve(uint256 txId)
         external
         onlyOwner
         txExists(txId)
@@ -126,27 +148,33 @@ contract MultiSigWallet {
         // execute(txId);
     }
 
-    function _getApprovalCount(uint txId) internal view returns (uint count) {
-        for (uint i = 0; i < owners.length; i++) {
-            if (approved[txId][owners[i]]) {
+    function _getApprovalCount(uint256 txId)
+        internal
+        view
+        returns (uint256 count)
+    {
+        for (uint256 i = 0; i < guards.length; i++) {
+            if (approved[txId][guards[i]]) {
                 count += 1;
             }
         }
     }
 
-    function execute(uint txId) external txExists(txId) notExecuted(txId) {
+    function execute(uint256 txId) external txExists(txId) notExecuted(txId) {
         require(_getApprovalCount(txId) >= required, "approvals < required");
         Transaction storage transaction = transactions[txId];
 
         transaction.executed = true;
 
-        (bool success, ) = transaction.to.call{value: transaction.value}(transaction.data);
+        (bool success, ) = transaction.to.call{value: transaction.value}(
+            transaction.data
+        );
         require(success, "tx failed");
 
         emit Execute(txId);
     }
-    
-    function revoke(uint txId)
+
+    function revoke(uint256 txId)
         external
         onlyOwner
         txExists(txId)
@@ -158,4 +186,3 @@ contract MultiSigWallet {
         emit Revoke(msg.sender, txId);
     }
 }
-
